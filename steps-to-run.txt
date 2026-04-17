@@ -1,0 +1,10 @@
+cd backend
+.\venv\Scripts\Activate.ps1
+python main.py
+# Server spins up on http://0.0.0.0:8000
+
+
+
+cd frontend
+npm run dev
+# The React dashboard will be live at http://localhost:5173

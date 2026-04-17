@@ -1,0 +1,13 @@
+[
+  {
+    "camera_id": "cam_default_0",
+    "name": "Local Webcam",
+    "source": "0",
+    "model_size": "s",
+    "confidence_threshold": 0.55,
+    "iou_threshold": 0.45,
+    "frame_skip": 1,
+    "classes": [0, 2, 3, 5, 7],
+    "zones": []
+  }
+]
