@@ -45,7 +45,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
     "http://localhost:5173",  # for local dev
-    "https://your-frontend.vercel.app"  # after deploy
+    "https://visionmot-realtime-object-tracking.vercel.app"  # after deploy
     ],
     allow_credentials=True,
     allow_methods=["*"],
