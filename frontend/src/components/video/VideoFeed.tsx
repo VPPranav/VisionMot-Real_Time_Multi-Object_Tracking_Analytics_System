@@ -26,7 +26,7 @@ export default function VideoFeed({ cameraId, name, isRunning, onClick, classNam
   const [error, setError] = useState(false);
   const [wsFrame, setWsFrame] = useState<string>('');
   const [wsConnected, setWsConnected] = useState(false);
-  const [streamError, setStreamError] = useState(false);
+  const [streamError, setStreamError] = useState<string | null>(null);
 
   useAnalyticsWS(cameraId);
   const analytics = useAnalyticsStore(state => state.data[cameraId]);
@@ -39,7 +39,7 @@ export default function VideoFeed({ cameraId, name, isRunning, onClick, classNam
 
   useEffect(() => {
     setError(false);
-    setStreamError(false);
+    setStreamError(null);
   }, [cameraId]);
 
   const stopStreaming = useCallback(() => {
@@ -98,7 +98,7 @@ export default function VideoFeed({ cameraId, name, isRunning, onClick, classNam
           ws.onopen = () => {
             if (destroyed) { ws.close(); return; }
             setWsConnected(true);
-            setStreamError(false);
+            setStreamError(null);
             console.log('[VideoFeed] WS connected:', WS_URL);
 
             frameIntervalRef.current = setInterval(() => {
@@ -132,7 +132,7 @@ export default function VideoFeed({ cameraId, name, isRunning, onClick, classNam
             console.warn('[VideoFeed] WS closed, reconnecting in 3s...');
             setWsConnected(false);
             if (!wsFrame) {
-              setStreamError(true);
+              setStreamError('Unable to receive frames from server.');
             }
             if (frameIntervalRef.current) {
               clearInterval(frameIntervalRef.current);
@@ -144,7 +144,11 @@ export default function VideoFeed({ cameraId, name, isRunning, onClick, classNam
         })
         .catch(err => {
           console.error('[VideoFeed] Webcam error:', err);
-          setStreamError(true);
+          if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
+            setStreamError('Camera access denied.');
+          } else {
+            setStreamError('Unable to open your camera.');
+          }
         });
     };
 
@@ -201,8 +205,12 @@ export default function VideoFeed({ cameraId, name, isRunning, onClick, classNam
       {showClientFeed && streamError && (
         <div className="w-full h-full flex flex-col items-center justify-center text-text-secondary bg-surface min-h-[200px]">
           <AlertTriangle size={32} className="mb-2 text-warning" />
-          <p className="text-sm">Camera access denied</p>
-          <p className="text-xs mt-1 opacity-60">Check browser permissions</p>
+          <p className="text-sm">{streamError}</p>
+          <p className="text-xs mt-1 opacity-60">
+            {streamError.includes('denied')
+              ? 'Check browser permissions'
+              : 'Verify backend is awake and camera is started'}
+          </p>
         </div>
       )}
 

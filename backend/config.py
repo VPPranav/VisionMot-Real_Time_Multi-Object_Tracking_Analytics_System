@@ -37,7 +37,24 @@ class ConfigManager:
                         self.cameras = {}
             else:
                 os.makedirs(os.path.dirname(self.config_path), exist_ok=True)
-                self.save_unlocked()
+            if not self.cameras:
+                default_cam = self._build_default_camera()
+                self.cameras[default_cam.camera_id] = default_cam
+            self.save_unlocked()
+
+    def _build_default_camera(self) -> CameraConfig:
+        """Ensure deployed instances always expose at least one browser camera profile."""
+        return CameraConfig(
+            camera_id="cam_webcam_01",
+            name="Webcam (Browser)",
+            source="client",
+            model_size=settings.default_model_size,
+            confidence_threshold=settings.default_confidence_threshold,
+            iou_threshold=settings.default_iou_threshold,
+            frame_skip=1,
+            classes=settings.default_classes,
+            zones=[],
+        )
 
     def save_unlocked(self):
         with open(self.config_path, 'w') as f:

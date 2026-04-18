@@ -7,13 +7,15 @@ export function useCameraConfig() {
     const queryClient = useQueryClient();
     const setCameras = useCameraStore(state => state.setCameras);
 
-    const { data: cameras, isLoading } = useQuery({
+    const { data: cameras, isLoading, isError, error } = useQuery({
         queryKey: ['cameras'],
         queryFn: async () => {
             const { data } = await axios.get<CameraConfig[]>(`${API_URL}/cameras`);
             setCameras(data);
             return data;
-        }
+        },
+        retry: 3,
+        retryDelay: (attempt) => Math.min(1000 * (attempt + 1), 5000),
     });
 
     const updateCamera = useMutation({
@@ -36,5 +38,5 @@ export function useCameraConfig() {
         }
     });
 
-    return { cameras, isLoading, updateCamera, addCamera };
+    return { cameras, isLoading, isError, error, updateCamera, addCamera };
 }

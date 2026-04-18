@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import VideoFeed from '../components/video/VideoFeed';
 import { useCameraStore } from '../store/cameraStore';
 import { useAuthStore } from '../store/authStore';
+import { useCameraConfig } from '../hooks/useCameraConfig';
 import { LayoutGrid, Maximize2, Columns, Camera, Settings } from 'lucide-react';
 import clsx from 'clsx';
 import { API_URL } from '../utils/api';
@@ -12,6 +13,7 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ onSelectCamera, onGoToConfiguration }: DashboardProps) {
+  const { isLoading, isError } = useCameraConfig();
   const cameras = useCameraStore(state => state.cameras);
   const user = useAuthStore(state => state.user);
   const [layout, setLayout] = useState<1 | 2 | 4>(2);
@@ -120,8 +122,24 @@ export default function Dashboard({ onSelectCamera, onGoToConfiguration }: Dashb
         </div>
       </div>
 
-      {/* No cameras state */}
-      {cameras.length === 0 ? (
+      {isLoading ? (
+        <div className="h-80 flex flex-col items-center justify-center border border-dashed border-white/10 rounded-2xl bg-white/2">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mb-3" />
+          <p className="text-text-secondary text-sm">Loading camera configurations...</p>
+        </div>
+      ) : isError ? (
+        <div className="h-80 flex flex-col items-center justify-center border border-dashed border-white/10 rounded-2xl bg-white/2 px-6 text-center">
+          <p className="text-white font-semibold text-lg mb-1">Cannot load cameras</p>
+          <p className="text-text-secondary text-sm mb-6">Backend may be sleeping on Render. Wait 20-60 seconds and refresh.</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 rounded-xl text-sm font-semibold transition-all"
+          >
+            Retry
+          </button>
+        </div>
+      ) : cameras.length === 0 ? (
+      /* No cameras state */
         <div className="h-80 flex flex-col items-center justify-center border border-dashed border-white/10 rounded-2xl bg-white/2">
           <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mb-4">
             <Camera size={28} className="text-indigo-400" />
