@@ -22,7 +22,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from api.routes import cameras, analytics, alerts
-from api.websockets import analytics_ws
+from api.websockets import analytics_ws, client_ws
 from core.stream_manager import stream_manager
 from config import config_manager
 import asyncio
@@ -56,6 +56,7 @@ app.include_router(cameras.router)
 app.include_router(analytics.router)
 app.include_router(alerts.router)
 app.include_router(analytics_ws.router)
+app.include_router(client_ws.router)
 
 async def frame_generator(camera_id: str):
     while True:

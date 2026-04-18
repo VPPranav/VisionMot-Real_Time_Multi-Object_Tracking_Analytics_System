@@ -21,14 +21,19 @@ class CameraPipeline:
         self.latest_analytics = {}
         self.alerts_queue = []
         
+        import queue
         # Determine source (int for webcam, str for rtsp/file)
-        source = config.source
-        if source.isdigit():
-            source = int(source)
-            
-        self.cap = cv2.VideoCapture(source)
-        # Reduce OpenCV internal buffer to 1 so we always read the newest frame
-        self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        source = str(config.source)
+        self.is_client = (source == "client")
+        
+        if not self.is_client:
+            if source.isdigit():
+                source = int(source)
+            self.cap = cv2.VideoCapture(source)
+            self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        else:
+            self.cap = None
+            self.client_frame_queue = queue.Queue(maxsize=1)
         
         self.running = False
         # maxlen=1 so consumers always get the newest frame, never a stale one
@@ -39,6 +44,19 @@ class CameraPipeline:
         self.fps = 0.0
         self.frame_idx = 0
         self._last_frame_time = 0.0
+        
+    def push_client_frame(self, frame_bytes: bytes):
+        if not self.is_client or not self.running:
+            return
+        import numpy as np
+        nparr = np.frombuffer(frame_bytes, np.uint8)
+        frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        if frame is not None:
+            if self.client_frame_queue.full():
+                try: self.client_frame_queue.get_nowait()
+                except queue.Empty: pass
+            try: self.client_frame_queue.put_nowait(frame)
+            except queue.Full: pass
         
     def start(self):
         self.running = True
@@ -57,20 +75,32 @@ class CameraPipeline:
         INFERENCE_INTERVAL = 1.0 / 20.0  # 20 FPS cap for inference
         
         while self.running:
-            if not self.cap.isOpened():
-                time.sleep(1)
-                continue
+            import queue
+            if self.is_client:
+                try:
+                    frame = self.client_frame_queue.get(timeout=0.1)
+                except queue.Empty:
+                    time.sleep(0.01)
+                    continue
+            else:
+                if not self.cap.isOpened():
+                    time.sleep(1)
+                    continue
 
-            # Always grab the newest frame from the OS buffer
-            ret = self.cap.grab()
-            if not ret:
-                # Loop video if we reach the end
-                if isinstance(self.config.source, str) and not str(self.config.source).isdigit():
-                    self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-                    ret = self.cap.grab()
-                
+                # Always grab the newest frame from the OS buffer
+                ret = self.cap.grab()
                 if not ret:
-                    time.sleep(0.1)
+                    # Loop video if we reach the end
+                    if isinstance(self.config.source, str) and not str(self.config.source).isdigit():
+                        self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                        ret = self.cap.grab()
+                    
+                    if not ret:
+                        time.sleep(0.1)
+                        continue
+
+                ret, frame = self.cap.retrieve()
+                if not ret:
                     continue
 
             curr_time = time.time()
@@ -78,10 +108,6 @@ class CameraPipeline:
 
             # Skip inference if we haven't waited long enough (frame rate limiter)
             if elapsed < INFERENCE_INTERVAL:
-                continue
-
-            ret, frame = self.cap.retrieve()
-            if not ret:
                 continue
 
             self._last_frame_time = curr_time

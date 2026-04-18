@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAnalyticsStore } from '../../store/analyticsStore';
+import { useCameraStore } from '../../store/cameraStore';
 import { AlertTriangle, Activity } from 'lucide-react';
 import clsx from 'clsx';
 import { useAnalyticsWS } from '../../hooks/useAnalyticsWS';
@@ -7,24 +8,77 @@ import { useAnalyticsWS } from '../../hooks/useAnalyticsWS';
 interface VideoFeedProps {
   cameraId: string;
   name: string;
+  isRunning?: boolean;
   onClick?: () => void;
   className?: string;
 }
 
-export default function VideoFeed({ cameraId, name, onClick, className }: VideoFeedProps) {
+export default function VideoFeed({ cameraId, name, isRunning, onClick, className }: VideoFeedProps) {
   const imgRef = useRef<HTMLImageElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const wsRef = useRef<WebSocket | null>(null);
   const [error, setError] = useState(false);
   
   useAnalyticsWS(cameraId);
   const analytics = useAnalyticsStore(state => state.data[cameraId]);
+  const cameraConfig = useCameraStore(state => state.cameras.find(c => c.camera_id === cameraId));
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
   const streamUrl = `${API_URL}/stream/${cameraId}`;
+  const WS_URL = API_URL.replace(/^http/, 'ws') + `/ws/client-stream/${cameraId}`;
 
   useEffect(() => {
-    // Reset error when cameraId changes
     setError(false);
   }, [cameraId]);
+
+  // Handle client-side webcam streaming if configured
+  useEffect(() => {
+    const isClient = cameraConfig?.source === 'client';
+    
+    if (isClient && isRunning) {
+      // Start webcam and WebSocket
+      let stream: MediaStream | null = null;
+      let frameInterval: NodeJS.Timeout;
+
+      navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } })
+        .then(mediaStream => {
+          stream = mediaStream;
+          if (videoRef.current) {
+            videoRef.current.srcObject = mediaStream;
+            videoRef.current.play();
+          }
+
+          wsRef.current = new WebSocket(WS_URL);
+          wsRef.current.onopen = () => {
+            frameInterval = setInterval(() => {
+              if (videoRef.current && canvasRef.current && wsRef.current?.readyState === WebSocket.OPEN) {
+                const ctx = canvasRef.current.getContext('2d');
+                if (ctx) {
+                  ctx.drawImage(videoRef.current, 0, 0, 640, 480);
+                  // Extract raw JPEG bytes via canvas
+                  canvasRef.current.toBlob((blob) => {
+                    if (blob && wsRef.current?.readyState === WebSocket.OPEN) {
+                      wsRef.current.send(blob);
+                    }
+                  }, 'image/jpeg', 0.6);
+                }
+              }
+            }, 100); // 10 FPS upload
+          };
+        })
+        .catch(err => {
+          console.error("Error accessing webcam:", err);
+          setError(true);
+        });
+
+      return () => {
+        if (stream) stream.getTracks().forEach(t => t.stop());
+        if (frameInterval) clearInterval(frameInterval);
+        if (wsRef.current) wsRef.current.close();
+      };
+    }
+  }, [cameraConfig, isRunning, WS_URL]);
 
   return (
     <div 
@@ -35,12 +89,16 @@ export default function VideoFeed({ cameraId, name, onClick, className }: VideoF
       )}
       onClick={onClick}
     >
+      {/* Hidden elements for client streaming */}
+      <video ref={videoRef} className="hidden" muted playsInline />
+      <canvas ref={canvasRef} width={640} height={480} className="hidden" />
+
       {!error ? (
         <img
           ref={imgRef}
-          src={streamUrl}
-          onError={() => setError(true)}
-          className="w-full h-full object-cover"
+          src={isRunning ? streamUrl : ''}
+          onError={() => isRunning && setError(true)}
+          className={clsx("w-full h-full object-cover", !isRunning && "opacity-20")}
           alt={`Stream ${name}`}
         />
       ) : (
@@ -54,10 +112,10 @@ export default function VideoFeed({ cameraId, name, onClick, className }: VideoF
       <div className="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/80 to-transparent flex justify-between items-start opacity-0 group-hover:opacity-100 transition-opacity">
         <div>
           <h3 className="text-white font-semibold flex items-center space-x-2">
-            <span className="w-2 h-2 rounded-full bg-success animate-pulse"></span>
+            <span className={clsx("w-2 h-2 rounded-full", isRunning ? "bg-success animate-pulse" : "bg-text-secondary")}></span>
             <span>{name}</span>
           </h3>
-          {analytics && (
+          {analytics && isRunning && (
             <div className="flex items-center space-x-3 mt-2 text-xs font-mono text-white/80">
               <span className="flex items-center space-x-1 bg-surface-elevated/80 px-2 py-1 rounded backdrop-blur border border-white/10">
                 <Activity size={12} />

@@ -15,6 +15,18 @@ export default function Dashboard({ onSelectCamera }: DashboardProps) {
   const user = useAuthStore(state => state.user);
   const [layout, setLayout] = useState<1 | 2 | 4>(2);
 
+  const [runningCameras, setRunningCameras] = useState<Record<string, boolean>>({});
+
+  const handleStart = (cam: any) => {
+    fetch(`${API_URL}/cameras/${cam.camera_id}/start`, { method: 'POST' });
+    setRunningCameras(prev => ({ ...prev, [cam.camera_id]: true }));
+  };
+
+  const handleStop = (cam: any) => {
+    fetch(`${API_URL}/cameras/${cam.camera_id}/stop`, { method: 'POST' });
+    setRunningCameras(prev => ({ ...prev, [cam.camera_id]: false }));
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -106,6 +118,7 @@ export default function Dashboard({ onSelectCamera }: DashboardProps) {
                 <VideoFeed
                   cameraId={cam.camera_id}
                   name={cam.name}
+                  isRunning={runningCameras[cam.camera_id] || false}
                   onClick={() => onSelectCamera(cam.camera_id)}
                   className={clsx(
                     "w-full",
@@ -120,14 +133,14 @@ export default function Dashboard({ onSelectCamera }: DashboardProps) {
               <div className="flex items-center justify-between mt-2.5 px-0.5">
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => fetch(`${API_URL}/cameras/${cam.camera_id}/start`, { method: 'POST' })}
+                    onClick={() => handleStart(cam)}
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-semibold rounded-lg border border-emerald-500/20 hover:border-emerald-500/30 transition-all"
                   >
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                     Start
                   </button>
                   <button
-                    onClick={() => fetch(`${API_URL}/cameras/${cam.camera_id}/stop`, { method: 'POST' })}
+                    onClick={() => handleStop(cam)}
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-semibold rounded-lg border border-red-500/20 hover:border-red-500/30 transition-all"
                   >
                     <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
