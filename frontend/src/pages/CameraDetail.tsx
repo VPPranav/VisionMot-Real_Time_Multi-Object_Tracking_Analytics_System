@@ -12,6 +12,9 @@ interface CameraDetailProps {
   cameraId: string;
 }
 
+const rawApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_URL = rawApiUrl.replace(/\/$/, '');
+
 const CHART_STYLE = {
   tooltip: {
     contentStyle: {
@@ -31,11 +34,39 @@ export default function CameraDetail({ cameraId }: CameraDetailProps) {
   const { data: history } = useAnalyticsHistory(cameraId, '5m');
   const [activeTab, setActiveTab] = useState<'counts' | 'tracks' | 'density'>('counts');
 
+  // Each CameraDetail manages its own running state independently from Dashboard
+  const [isRunning, setIsRunning] = useState(false);
+  const [loading, setLoading] = useState(false);
+
   if (!camera) return (
     <div className="p-8 text-center">
       <div className="text-red-400 font-semibold">Camera not found</div>
     </div>
   );
+
+  const handleStart = async () => {
+    setLoading(true);
+    try {
+      await fetch(`${API_URL}/cameras/${camera.camera_id}/start`, { method: 'POST' });
+      setIsRunning(true);
+    } catch (e) {
+      console.error('Failed to start camera', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStop = async () => {
+    setLoading(true);
+    try {
+      await fetch(`${API_URL}/cameras/${camera.camera_id}/stop`, { method: 'POST' });
+      setIsRunning(false);
+    } catch (e) {
+      console.error('Failed to stop camera', e);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const chartData = useMemo(() => {
     if (!history) return [];
@@ -48,7 +79,8 @@ export default function CameraDetail({ cameraId }: CameraDetailProps) {
   }, [history]);
 
   const vehicleTotal = analytics?.cumulative_classes
-    ? (analytics.cumulative_classes.car || 0) + (analytics.cumulative_classes.motorcycle || 0) + (analytics.cumulative_classes.truck || 0) + (analytics.cumulative_classes.bus || 0)
+    ? (analytics.cumulative_classes.car || 0) + (analytics.cumulative_classes.motorcycle || 0)
+    + (analytics.cumulative_classes.truck || 0) + (analytics.cumulative_classes.bus || 0)
     : null;
   const pedestrianTotal = analytics?.cumulative_classes?.person ?? null;
 
@@ -64,21 +96,64 @@ export default function CameraDetail({ cameraId }: CameraDetailProps) {
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className={clsx(
+              "w-2 h-2 rounded-full",
+              isRunning ? "bg-emerald-400 animate-pulse" : "bg-white/20"
+            )} />
             <span className="text-xs font-semibold text-emerald-400 tracking-widest uppercase">Camera Detail</span>
           </div>
           <h1 className="text-3xl font-black tracking-tight text-white">{camera.name}</h1>
           <p className="text-text-secondary mt-1 text-sm font-mono">{camera.camera_id}</p>
         </div>
+
+        {/* Start / Stop controls */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleStart}
+            disabled={isRunning || loading}
+            className={clsx(
+              "flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-xl border transition-all",
+              isRunning || loading
+                ? "opacity-40 cursor-not-allowed bg-emerald-500/5 text-emerald-400/50 border-emerald-500/10"
+                : "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/20"
+            )}
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+            {loading && !isRunning ? 'Starting…' : 'Start'}
+          </button>
+          <button
+            onClick={handleStop}
+            disabled={!isRunning || loading}
+            className={clsx(
+              "flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-xl border transition-all",
+              !isRunning || loading
+                ? "opacity-40 cursor-not-allowed bg-red-500/5 text-red-400/50 border-red-500/10"
+                : "bg-red-500/10 hover:bg-red-500/20 text-red-400 border-red-500/20"
+            )}
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
+            {loading && isRunning ? 'Stopping…' : 'Stop'}
+          </button>
+        </div>
       </div>
 
-      {/* Video feed */}
+      {/* Video feed — isRunning is REQUIRED for client webcam to connect */}
       <div className="relative rounded-2xl overflow-hidden border border-white/8 bg-black/40">
         <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5 bg-black/70 backdrop-blur-sm border border-white/10 rounded-full px-3 py-1.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="text-[10px] font-bold text-white/80 tracking-widest uppercase">Live Feed</span>
+          <span className={clsx(
+            "w-1.5 h-1.5 rounded-full",
+            isRunning ? "bg-emerald-400 animate-pulse" : "bg-white/20"
+          )} />
+          <span className="text-[10px] font-bold text-white/80 tracking-widest uppercase">
+            {isRunning ? 'Live Feed' : 'Idle'}
+          </span>
         </div>
-        <VideoFeed cameraId={cameraId} name={camera.name} className="h-[50vh] w-full" />
+        <VideoFeed
+          cameraId={cameraId}
+          name={camera.name}
+          isRunning={isRunning}           {/* ← THIS was the missing prop causing "waiting for frame" forever */}
+          className="h-[50vh] w-full"
+        />
       </div>
 
       {/* Tab panel */}
@@ -109,7 +184,7 @@ export default function CameraDetail({ cameraId }: CameraDetailProps) {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
               {/* Chart */}
               <div className="bg-white/3 rounded-xl p-5 border border-white/8">
-                <h3 className="text-sm font-semibold text-white mb-0.5">Active Objects (Last 60s)</h3>
+                <h3 className="text-sm font-semibold text-white mb-0.5">Active Objects (Last 5m)</h3>
                 <p className="text-xs text-text-secondary mb-4">Real-time vehicle and pedestrian counts</p>
                 <div className="h-56">
                   <ResponsiveContainer width="100%" height="100%">
@@ -150,9 +225,9 @@ export default function CameraDetail({ cameraId }: CameraDetailProps) {
                     </div>
                   </div>
                 ) : (
-                  <div className="flex items-center justify-center h-40 text-text-secondary text-sm">
-                    <Activity size={20} className="mr-2 opacity-50" />
-                    Waiting for data...
+                  <div className="flex flex-col items-center justify-center h-40 text-text-secondary text-sm gap-2">
+                    <Activity size={20} className="opacity-50" />
+                    {isRunning ? 'Waiting for data…' : 'Start the feed to see analytics'}
                   </div>
                 )}
               </div>
