@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useCameraConfig } from '../hooks/useCameraConfig';
-import { Plus, Trash2, Edit3, Settings, Camera, Cpu, Webcam } from 'lucide-react';
+import { Plus, Trash2, Settings, Camera, Cpu } from 'lucide-react';
 import clsx from 'clsx';
 
 const SOURCE_OPTIONS = [
@@ -13,7 +13,10 @@ const SOURCE_OPTIONS = [
 type SourceType = 'client' | '0' | 'rtsp' | 'file';
 
 export default function Configuration() {
-  const { cameras, addCamera, deleteCamera } = useCameraConfig();
+  const { cameras, addCamera } = useCameraConfig();
+
+  const rawApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+  const API_URL = rawApiUrl.replace(/\/$/, '');
   const [isAdding, setIsAdding] = useState(false);
   const [sourceType, setSourceType] = useState<SourceType>('client');
   const [customSource, setCustomSource] = useState('');
@@ -47,9 +50,14 @@ export default function Configuration() {
     setNewCam({ id: `cam_${Date.now()}`, name: '' });
   };
 
-  const handleDelete = (cameraId: string) => {
-    if (window.confirm('Remove this camera?')) {
-      deleteCamera?.mutate(cameraId);
+  const handleDelete = async (cameraId: string) => {
+    if (!window.confirm("Remove this camera?")) return;
+    try {
+      await fetch(`${API_URL}/cameras/${cameraId}`, { method: "DELETE" });
+      window.location.reload();
+    } catch (e) {
+      console.error("Failed to delete camera:", e);
+      alert("Failed to delete camera. Please try again.");
     }
   };
 
