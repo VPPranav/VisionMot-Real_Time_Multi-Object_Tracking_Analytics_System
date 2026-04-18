@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useAlertStore, Alert } from '../store/alertStore';
+import { WS_BASE_URL } from '../utils/api';
 
 export function useAlerts() {
     const ws = useRef<WebSocket | null>(null);
@@ -10,9 +11,7 @@ export function useAlerts() {
         let backoff = 1000;
 
         const connect = () => {
-            const rawUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-            const url = rawUrl.replace(/\/$/, '');
-            const wsUrl = url.replace(/^http/, 'ws') + `/ws/alerts`;
+            const wsUrl = `${WS_BASE_URL}/ws/alerts`;
             
             ws.current = new WebSocket(wsUrl);
 

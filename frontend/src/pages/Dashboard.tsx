@@ -4,15 +4,14 @@ import { useCameraStore } from '../store/cameraStore';
 import { useAuthStore } from '../store/authStore';
 import { LayoutGrid, Maximize2, Columns, Camera, Settings } from 'lucide-react';
 import clsx from 'clsx';
-
-const rawApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-const API_URL = rawApiUrl.replace(/\/$/, '');
+import { API_URL } from '../utils/api';
 
 interface DashboardProps {
   onSelectCamera: (id: string) => void;
+  onGoToConfiguration: () => void;
 }
 
-export default function Dashboard({ onSelectCamera }: DashboardProps) {
+export default function Dashboard({ onSelectCamera, onGoToConfiguration }: DashboardProps) {
   const cameras = useCameraStore(state => state.cameras);
   const user = useAuthStore(state => state.user);
   const [layout, setLayout] = useState<1 | 2 | 4>(2);
@@ -29,10 +28,16 @@ export default function Dashboard({ onSelectCamera }: DashboardProps) {
     if (loadingCameras[cam.camera_id]) return;
     setLoadingCameras(prev => ({ ...prev, [cam.camera_id]: true }));
     try {
-      await fetch(`${API_URL}/cameras/${cam.camera_id}/start`, { method: 'POST' });
+      const response = await fetch(`${API_URL}/cameras/${cam.camera_id}/start`, { method: 'POST' });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.detail || `Start failed (${response.status})`);
+      }
       setRunningCameras(prev => ({ ...prev, [cam.camera_id]: true }));
     } catch (err) {
       console.error('Failed to start camera:', err);
+      const message = err instanceof Error ? err.message : 'Unknown error while starting camera';
+      window.alert(`Unable to start camera "${cam.name}". ${message}`);
     } finally {
       setLoadingCameras(prev => ({ ...prev, [cam.camera_id]: false }));
     }
@@ -42,10 +47,16 @@ export default function Dashboard({ onSelectCamera }: DashboardProps) {
     if (loadingCameras[cam.camera_id]) return;
     setLoadingCameras(prev => ({ ...prev, [cam.camera_id]: true }));
     try {
-      await fetch(`${API_URL}/cameras/${cam.camera_id}/stop`, { method: 'POST' });
+      const response = await fetch(`${API_URL}/cameras/${cam.camera_id}/stop`, { method: 'POST' });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.detail || `Stop failed (${response.status})`);
+      }
       setRunningCameras(prev => ({ ...prev, [cam.camera_id]: false }));
     } catch (err) {
       console.error('Failed to stop camera:', err);
+      const message = err instanceof Error ? err.message : 'Unknown error while stopping camera';
+      window.alert(`Unable to stop camera "${cam.name}". ${message}`);
     } finally {
       setLoadingCameras(prev => ({ ...prev, [cam.camera_id]: false }));
     }
@@ -117,7 +128,10 @@ export default function Dashboard({ onSelectCamera }: DashboardProps) {
           </div>
           <p className="text-white font-semibold text-lg mb-1">No cameras configured</p>
           <p className="text-text-secondary text-sm mb-6">Add a camera source to start monitoring.</p>
-          <button className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 rounded-xl text-sm font-semibold transition-all">
+          <button
+            onClick={onGoToConfiguration}
+            className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 rounded-xl text-sm font-semibold transition-all"
+          >
             <Settings size={16} />
             Go to Configuration
           </button>

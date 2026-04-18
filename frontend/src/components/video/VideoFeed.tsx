@@ -4,6 +4,7 @@ import { useCameraStore } from '../../store/cameraStore';
 import { AlertTriangle, Activity, WifiOff } from 'lucide-react';
 import clsx from 'clsx';
 import { useAnalyticsWS } from '../../hooks/useAnalyticsWS';
+import { API_URL, WS_BASE_URL } from '../../utils/api';
 
 interface VideoFeedProps {
   cameraId: string;
@@ -31,11 +32,8 @@ export default function VideoFeed({ cameraId, name, isRunning, onClick, classNam
   const analytics = useAnalyticsStore(state => state.data[cameraId]);
   const cameraConfig = useCameraStore(state => state.cameras.find(c => c.camera_id === cameraId));
 
-  const rawApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-  const API_URL = rawApiUrl.replace(/\/$/, '');
   const streamUrl = `${API_URL}/stream/${cameraId}`;
-  // Always use wss:// for deployed (https) backend, ws:// for localhost
-  const WS_URL = API_URL.replace(/^https/, 'wss').replace(/^http/, 'ws') + `/ws/client-stream/${cameraId}`;
+  const WS_URL = `${WS_BASE_URL}/ws/client-stream/${cameraId}`;
 
   const isClient = cameraConfig?.source === 'client';
 
@@ -133,6 +131,9 @@ export default function VideoFeed({ cameraId, name, isRunning, onClick, classNam
             if (destroyed) return;
             console.warn('[VideoFeed] WS closed, reconnecting in 3s...');
             setWsConnected(false);
+            if (!wsFrame) {
+              setStreamError(true);
+            }
             if (frameIntervalRef.current) {
               clearInterval(frameIntervalRef.current);
               frameIntervalRef.current = null;

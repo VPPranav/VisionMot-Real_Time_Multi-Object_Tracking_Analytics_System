@@ -1,8 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
-
-const rawApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-const API_URL = rawApiUrl.replace(/\/$/, '');
+import { API_URL } from '../utils/api';
 
 export function useAnalyticsHistory(cameraId: string, window: string = '60s') {
   return useQuery({

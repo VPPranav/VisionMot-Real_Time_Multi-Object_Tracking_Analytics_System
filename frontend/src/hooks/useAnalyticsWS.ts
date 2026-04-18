@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useAnalyticsStore, AnalyticsMessage } from '../store/analyticsStore';
+import { WS_BASE_URL } from '../utils/api';
 
 export function useAnalyticsWS(cameraId: string) {
     const ws = useRef<WebSocket | null>(null);
@@ -12,9 +13,7 @@ export function useAnalyticsWS(cameraId: string) {
         let backoff = 1000;
 
         const connect = () => {
-            const rawUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-            const url = rawUrl.replace(/\/$/, '');
-            const wsUrl = url.replace(/^http/, 'ws') + `/ws/analytics/${cameraId}`;
+            const wsUrl = `${WS_BASE_URL}/ws/analytics/${cameraId}`;
             
             ws.current = new WebSocket(wsUrl);
 

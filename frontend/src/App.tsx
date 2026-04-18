@@ -38,7 +38,12 @@ function App() {
     <Layout currentPage={currentPage} onNavigate={navigateTo}>
       {currentPage === 'home' && <Home onNavigate={(page) => navigateTo(page)} />}
       {currentPage === 'auth' && <Auth onLoginSuccess={() => navigateTo('dashboard')} />}
-      {currentPage === 'dashboard' && user && <Dashboard onSelectCamera={(id) => navigateTo('camera', id)} />}
+      {currentPage === 'dashboard' && user && (
+        <Dashboard
+          onSelectCamera={(id) => navigateTo('camera', id)}
+          onGoToConfiguration={() => navigateTo('configuration')}
+        />
+      )}
       {currentPage === 'camera' && selectedCamera && user && <CameraDetail cameraId={selectedCamera} />}
       {currentPage === 'alerts' && user && <AlertsLog />}
       {currentPage === 'configuration' && user && <Configuration />}

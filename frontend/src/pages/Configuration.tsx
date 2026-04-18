@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useCameraConfig } from '../hooks/useCameraConfig';
 import { Plus, Trash2, Settings, Camera, Cpu } from 'lucide-react';
 import clsx from 'clsx';
+import { API_URL } from '../utils/api';
 
 const SOURCE_OPTIONS = [
   { value: 'client', label: '🎥 Browser Webcam (client)', hint: 'Stream from this device\'s camera' },
@@ -15,8 +16,6 @@ type SourceType = 'client' | '0' | 'rtsp' | 'file';
 export default function Configuration() {
   const { cameras, addCamera } = useCameraConfig();
 
-  const rawApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-  const API_URL = rawApiUrl.replace(/\/$/, '');
   const [isAdding, setIsAdding] = useState(false);
   const [sourceType, setSourceType] = useState<SourceType>('client');
   const [customSource, setCustomSource] = useState('');

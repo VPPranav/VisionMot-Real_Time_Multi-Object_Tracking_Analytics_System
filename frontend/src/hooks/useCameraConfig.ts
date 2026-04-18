@@ -1,9 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { CameraConfig, useCameraStore } from '../store/cameraStore';
-
-const rawApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-const API_URL = rawApiUrl.replace(/\/$/, '');
+import { API_URL } from '../utils/api';
 
 export function useCameraConfig() {
     const queryClient = useQueryClient();
