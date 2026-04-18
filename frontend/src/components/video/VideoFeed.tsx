@@ -19,6 +19,7 @@ export default function VideoFeed({ cameraId, name, isRunning, onClick, classNam
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const [error, setError] = useState(false);
+  const [wsFrame, setWsFrame] = useState<string>('');
   
   useAnalyticsWS(cameraId);
   const analytics = useAnalyticsStore(state => state.data[cameraId]);
@@ -56,15 +57,19 @@ export default function VideoFeed({ cameraId, name, isRunning, onClick, classNam
                 const ctx = canvasRef.current.getContext('2d');
                 if (ctx) {
                   ctx.drawImage(videoRef.current, 0, 0, 640, 480);
-                  // Extract raw JPEG bytes via canvas
-                  canvasRef.current.toBlob((blob) => {
-                    if (blob && wsRef.current?.readyState === WebSocket.OPEN) {
-                      wsRef.current.send(blob);
-                    }
-                  }, 'image/jpeg', 0.6);
+                  // Send base64 frame
+                  const dataURL = canvasRef.current.toDataURL('image/jpeg', 0.6);
+                  wsRef.current.send(dataURL);
                 }
               }
             }, 100); // 10 FPS upload
+          };
+          
+          wsRef.current.onmessage = (event) => {
+             // Receive annotated frame
+             if (typeof event.data === 'string' && event.data.startsWith('data:image')) {
+                 setWsFrame(event.data);
+             }
           };
         })
         .catch(err => {
@@ -77,8 +82,13 @@ export default function VideoFeed({ cameraId, name, isRunning, onClick, classNam
         if (frameInterval) clearInterval(frameInterval);
         if (wsRef.current) wsRef.current.close();
       };
+    } else {
+      setWsFrame(''); // clear when stopped
     }
   }, [cameraConfig, isRunning, WS_URL]);
+
+  const isClient = cameraConfig?.source === 'client';
+  const displaySrc = isClient ? (wsFrame || '') : (isRunning ? streamUrl : '');
 
   return (
     <div 
@@ -96,8 +106,8 @@ export default function VideoFeed({ cameraId, name, isRunning, onClick, classNam
       {!error ? (
         <img
           ref={imgRef}
-          src={isRunning ? streamUrl : ''}
-          onError={() => isRunning && setError(true)}
+          src={displaySrc}
+          onError={() => { if(!isClient && isRunning) setError(true); }}
           className={clsx("w-full h-full object-cover", !isRunning && "opacity-20")}
           alt={`Stream ${name}`}
         />
