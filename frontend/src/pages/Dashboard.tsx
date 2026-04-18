@@ -4,7 +4,8 @@ import { useCameraStore } from '../store/cameraStore';
 import { useAuthStore } from '../store/authStore';
 import { LayoutGrid, Maximize2, Columns, Camera, Settings } from 'lucide-react';
 import clsx from 'clsx';
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const rawApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_URL = rawApiUrl.replace(/\/$/, '');
 
 interface DashboardProps {
   onSelectCamera: (id: string) => void;

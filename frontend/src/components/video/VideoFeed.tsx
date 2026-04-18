@@ -25,7 +25,8 @@ export default function VideoFeed({ cameraId, name, isRunning, onClick, classNam
   const analytics = useAnalyticsStore(state => state.data[cameraId]);
   const cameraConfig = useCameraStore(state => state.cameras.find(c => c.camera_id === cameraId));
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+  const rawApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+  const API_URL = rawApiUrl.replace(/\/$/, ''); // Remove trailing slash
   const streamUrl = `${API_URL}/stream/${cameraId}`;
   const WS_URL = API_URL.replace(/^http/, 'ws') + `/ws/client-stream/${cameraId}`;
 
@@ -41,46 +42,66 @@ export default function VideoFeed({ cameraId, name, isRunning, onClick, classNam
       // Start webcam and WebSocket
       let stream: MediaStream | null = null;
       let frameInterval: NodeJS.Timeout;
+      let reconnectTimeout: NodeJS.Timeout;
 
-      navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } })
-        .then(mediaStream => {
-          stream = mediaStream;
-          if (videoRef.current) {
-            videoRef.current.srcObject = mediaStream;
-            videoRef.current.play();
-          }
-
-          wsRef.current = new WebSocket(WS_URL);
-          wsRef.current.onopen = () => {
-            frameInterval = setInterval(() => {
-              if (videoRef.current && canvasRef.current && wsRef.current?.readyState === WebSocket.OPEN) {
-                const ctx = canvasRef.current.getContext('2d');
-                if (ctx) {
-                  ctx.drawImage(videoRef.current, 0, 0, 640, 480);
-                  // Send base64 frame
-                  const dataURL = canvasRef.current.toDataURL('image/jpeg', 0.6);
-                  wsRef.current.send(dataURL);
-                }
+      const startStreaming = () => {
+          navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } })
+            .then(mediaStream => {
+              stream = mediaStream;
+              if (videoRef.current) {
+                videoRef.current.srcObject = mediaStream;
+                videoRef.current.play();
               }
-            }, 100); // 10 FPS upload
-          };
-          
-          wsRef.current.onmessage = (event) => {
-             // Receive annotated frame
-             if (typeof event.data === 'string' && event.data.startsWith('data:image')) {
-                 setWsFrame(event.data);
-             }
-          };
-        })
-        .catch(err => {
-          console.error("Error accessing webcam:", err);
-          setError(true);
-        });
+
+              wsRef.current = new WebSocket(WS_URL);
+              wsRef.current.onopen = () => {
+                console.log("Connected to stream WS");
+                frameInterval = setInterval(() => {
+                  if (videoRef.current && canvasRef.current && wsRef.current?.readyState === WebSocket.OPEN) {
+                    const ctx = canvasRef.current.getContext('2d');
+                    if (ctx) {
+                      ctx.drawImage(videoRef.current, 0, 0, 640, 480);
+                      // Send base64 frame
+                      const dataURL = canvasRef.current.toDataURL('image/jpeg', 0.6);
+                      wsRef.current.send(dataURL);
+                    }
+                  }
+                }, 100); // 10 FPS upload
+              };
+              
+              wsRef.current.onmessage = (event) => {
+                 // Receive annotated frame
+                 if (typeof event.data === 'string' && event.data.startsWith('data:image')) {
+                     setWsFrame(event.data);
+                 }
+              };
+
+              wsRef.current.onerror = (err) => {
+                  console.error("Stream WebSocket error:", err);
+              };
+
+              wsRef.current.onclose = () => {
+                  console.log("Stream WebSocket closed, reconnecting...");
+                  if (frameInterval) clearInterval(frameInterval);
+                  reconnectTimeout = setTimeout(startStreaming, 3000);
+              };
+            })
+            .catch(err => {
+              console.error("Error accessing webcam:", err);
+              setError(true);
+            });
+      };
+
+      startStreaming();
 
       return () => {
         if (stream) stream.getTracks().forEach(t => t.stop());
         if (frameInterval) clearInterval(frameInterval);
-        if (wsRef.current) wsRef.current.close();
+        if (reconnectTimeout) clearTimeout(reconnectTimeout);
+        if (wsRef.current) {
+            wsRef.current.onclose = null;
+            wsRef.current.close();
+        }
       };
     } else {
       setWsFrame(''); // clear when stopped

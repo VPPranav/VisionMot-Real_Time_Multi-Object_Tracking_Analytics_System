@@ -10,7 +10,8 @@ export function useAlerts() {
         let backoff = 1000;
 
         const connect = () => {
-            const url = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+            const rawUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+            const url = rawUrl.replace(/\/$/, '');
             const wsUrl = url.replace(/^http/, 'ws') + `/ws/alerts`;
             
             ws.current = new WebSocket(wsUrl);

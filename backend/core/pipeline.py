@@ -67,7 +67,8 @@ class CameraPipeline:
         self.running = False
         if self.thread:
             self.thread.join(timeout=2.0)
-        self.cap.release()
+        if self.cap:
+            self.cap.release()
         
     def _process_loop(self):
         prev_time = time.time()

@@ -44,8 +44,9 @@ app = FastAPI(title="Real-Time MOT System", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-    "http://localhost:5173",  # for local dev
-    "https://visionmot-realtime-object-tracking.vercel.app"  # after deploy
+        "http://localhost:5173",
+        "https://visionmot-realtime-object-tracking.vercel.app",
+        "https://visionmot-realtime-object-tracking.vercel.app/"
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -80,4 +81,4 @@ async def video_stream(camera_id: str):
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
