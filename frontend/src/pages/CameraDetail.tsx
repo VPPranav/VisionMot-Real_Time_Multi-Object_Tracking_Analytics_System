@@ -151,7 +151,7 @@ export default function CameraDetail({ cameraId }: CameraDetailProps) {
         <VideoFeed
           cameraId={cameraId}
           name={camera.name}
-          isRunning={isRunning}           {/* ← THIS was the missing prop causing "waiting for frame" forever */}
+          isRunning={isRunning}
           className="h-[50vh] w-full"
         />
       </div>
