@@ -2,7 +2,7 @@
   {
     "camera_id": "cam_default_0",
     "name": "Local Webcam",
-    "source": "0",
+    "source": "https://raw.githubusercontent.com/intel-iot-devkit/sample-videos/master/people-detection.mp4",
     "model_size": "s",
     "confidence_threshold": 0.55,
     "iou_threshold": 0.45,

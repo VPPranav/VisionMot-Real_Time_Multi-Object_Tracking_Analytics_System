@@ -64,8 +64,14 @@ class CameraPipeline:
             # Always grab the newest frame from the OS buffer
             ret = self.cap.grab()
             if not ret:
-                time.sleep(0.01)
-                continue
+                # Loop video if we reach the end
+                if isinstance(self.config.source, str) and not str(self.config.source).isdigit():
+                    self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                    ret = self.cap.grab()
+                
+                if not ret:
+                    time.sleep(0.1)
+                    continue
 
             curr_time = time.time()
             elapsed = curr_time - self._last_frame_time
