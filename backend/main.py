@@ -41,13 +41,25 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Real-Time MOT System", lifespan=lifespan)
 
+# ---------------------------------------------------------------------------
+# CORS — allow the Vercel frontend (http & https) and localhost dev.
+# WebSocket upgrades share the same origin check so listing https:// covers wss://.
+# ---------------------------------------------------------------------------
+ALLOWED_ORIGINS = [
+    # Local development
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:5173",
+    # Production Vercel frontend
+    "https://visionmot-realtime-object-tracking.vercel.app",
+    # Allow any Vercel preview deployments  (optional, harmless)
+    "https://visionmot-realtime-object-tracking-git-main-vppranavs-projects.vercel.app",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "https://visionmot-realtime-object-tracking.vercel.app",
-        "https://visionmot-realtime-object-tracking.vercel.app/"
-    ],
+    allow_origins=ALLOWED_ORIGINS,
+    allow_origin_regex=r"https://visionmot.*\.vercel\.app",  # covers all preview URLs
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -59,6 +71,7 @@ app.include_router(alerts.router)
 app.include_router(analytics_ws.router)
 app.include_router(client_ws.router)
 
+
 async def frame_generator(camera_id: str):
     while True:
         pipeline = stream_manager.get_pipeline(camera_id)
@@ -67,16 +80,33 @@ async def frame_generator(camera_id: str):
             if frame:
                 yield (b'--frame\r\n'
                        b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
-                # Small yield to let the event loop breathe without accumulating delay
                 await asyncio.sleep(0.01)
             else:
                 await asyncio.sleep(0.02)
         else:
             await asyncio.sleep(1)
 
+
 @app.get("/stream/{camera_id}")
 async def video_stream(camera_id: str):
-    return StreamingResponse(frame_generator(camera_id), media_type="multipart/x-mixed-replace; boundary=frame")
+    return StreamingResponse(
+        frame_generator(camera_id),
+        media_type="multipart/x-mixed-replace; boundary=frame",
+        headers={
+            # Required so browsers don't buffer the MJPEG stream
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0",
+            "X-Accel-Buffering": "no",  # Disable Nginx buffering on Render
+        }
+    )
+
+
+@app.get("/health")
+async def health():
+    """Simple health-check endpoint — used by Render to keep service alive."""
+    return {"status": "ok", "pipelines": len(stream_manager.pipelines)}
+
 
 if __name__ == "__main__":
     import uvicorn

@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import VideoFeed from '../components/video/VideoFeed';
 import { useCameraStore } from '../store/cameraStore';
 import { useAuthStore } from '../store/authStore';
 import { LayoutGrid, Maximize2, Columns, Camera, Settings } from 'lucide-react';
 import clsx from 'clsx';
+
 const rawApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 const API_URL = rawApiUrl.replace(/\/$/, '');
 
@@ -15,17 +16,39 @@ export default function Dashboard({ onSelectCamera }: DashboardProps) {
   const cameras = useCameraStore(state => state.cameras);
   const user = useAuthStore(state => state.user);
   const [layout, setLayout] = useState<1 | 2 | 4>(2);
-
   const [runningCameras, setRunningCameras] = useState<Record<string, boolean>>({});
+  const [loadingCameras, setLoadingCameras] = useState<Record<string, boolean>>({});
 
-  const handleStart = (cam: any) => {
-    fetch(`${API_URL}/cameras/${cam.camera_id}/start`, { method: 'POST' });
-    setRunningCameras(prev => ({ ...prev, [cam.camera_id]: true }));
+  // Reset running state if cameras list changes
+  useEffect(() => {
+    setRunningCameras({});
+    setLoadingCameras({});
+  }, [cameras.length]);
+
+  const handleStart = async (cam: { camera_id: string;[key: string]: any }) => {
+    if (loadingCameras[cam.camera_id]) return;
+    setLoadingCameras(prev => ({ ...prev, [cam.camera_id]: true }));
+    try {
+      await fetch(`${API_URL}/cameras/${cam.camera_id}/start`, { method: 'POST' });
+      setRunningCameras(prev => ({ ...prev, [cam.camera_id]: true }));
+    } catch (err) {
+      console.error('Failed to start camera:', err);
+    } finally {
+      setLoadingCameras(prev => ({ ...prev, [cam.camera_id]: false }));
+    }
   };
 
-  const handleStop = (cam: any) => {
-    fetch(`${API_URL}/cameras/${cam.camera_id}/stop`, { method: 'POST' });
-    setRunningCameras(prev => ({ ...prev, [cam.camera_id]: false }));
+  const handleStop = async (cam: { camera_id: string;[key: string]: any }) => {
+    if (loadingCameras[cam.camera_id]) return;
+    setLoadingCameras(prev => ({ ...prev, [cam.camera_id]: true }));
+    try {
+      await fetch(`${API_URL}/cameras/${cam.camera_id}/stop`, { method: 'POST' });
+      setRunningCameras(prev => ({ ...prev, [cam.camera_id]: false }));
+    } catch (err) {
+      console.error('Failed to stop camera:', err);
+    } finally {
+      setLoadingCameras(prev => ({ ...prev, [cam.camera_id]: false }));
+    }
   };
 
   return (
@@ -40,7 +63,9 @@ export default function Dashboard({ onSelectCamera }: DashboardProps) {
           <h1 className="text-3xl font-black tracking-tight text-white">
             Welcome, <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-violet-400">{user}</span>
           </h1>
-          <p className="text-text-secondary mt-1 text-sm">Real-time monitoring across {cameras.length} active camera{cameras.length !== 1 ? 's' : ''}.</p>
+          <p className="text-text-secondary mt-1 text-sm">
+            Real-time monitoring across {cameras.length} active camera{cameras.length !== 1 ? 's' : ''}.
+          </p>
         </div>
 
         {/* Layout switcher */}
@@ -105,17 +130,20 @@ export default function Dashboard({ onSelectCamera }: DashboardProps) {
               "grid-cols-1 md:grid-cols-2 xl:grid-cols-4"
         )}>
           {cameras.map(cam => (
-            <div
-              key={cam.camera_id}
-              className="flex flex-col h-full group"
-            >
+            <div key={cam.camera_id} className="flex flex-col h-full group">
               {/* Feed wrapper */}
               <div className="relative rounded-2xl overflow-hidden border border-white/8 group-hover:border-indigo-500/30 transition-all duration-300 bg-black/40">
                 {/* Live badge */}
                 <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5 bg-black/60 backdrop-blur-sm border border-white/10 rounded-full px-2.5 py-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <span className="text-[10px] font-bold text-white/80 tracking-wide">LIVE</span>
+                  <span className={clsx(
+                    "w-1.5 h-1.5 rounded-full",
+                    runningCameras[cam.camera_id] ? "bg-emerald-400 animate-pulse" : "bg-white/20"
+                  )} />
+                  <span className="text-[10px] font-bold text-white/80 tracking-wide">
+                    {runningCameras[cam.camera_id] ? 'LIVE' : 'IDLE'}
+                  </span>
                 </div>
+
                 <VideoFeed
                   cameraId={cam.camera_id}
                   name={cam.name}
@@ -135,17 +163,29 @@ export default function Dashboard({ onSelectCamera }: DashboardProps) {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => handleStart(cam)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-semibold rounded-lg border border-emerald-500/20 hover:border-emerald-500/30 transition-all"
+                    disabled={runningCameras[cam.camera_id] || loadingCameras[cam.camera_id]}
+                    className={clsx(
+                      "flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all",
+                      runningCameras[cam.camera_id]
+                        ? "opacity-40 cursor-not-allowed bg-emerald-500/5 text-emerald-400/50 border-emerald-500/10"
+                        : "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/20 hover:border-emerald-500/30"
+                    )}
                   >
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                    Start
+                    {loadingCameras[cam.camera_id] && !runningCameras[cam.camera_id] ? 'Starting…' : 'Start'}
                   </button>
                   <button
                     onClick={() => handleStop(cam)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-semibold rounded-lg border border-red-500/20 hover:border-red-500/30 transition-all"
+                    disabled={!runningCameras[cam.camera_id] || loadingCameras[cam.camera_id]}
+                    className={clsx(
+                      "flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all",
+                      !runningCameras[cam.camera_id]
+                        ? "opacity-40 cursor-not-allowed bg-red-500/5 text-red-400/50 border-red-500/10"
+                        : "bg-red-500/10 hover:bg-red-500/20 text-red-400 border-red-500/20 hover:border-red-500/30"
+                    )}
                   >
                     <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
-                    Stop
+                    {loadingCameras[cam.camera_id] && runningCameras[cam.camera_id] ? 'Stopping…' : 'Stop'}
                   </button>
                 </div>
                 <button
