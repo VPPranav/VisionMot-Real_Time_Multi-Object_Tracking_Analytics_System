@@ -1,4 +1,4 @@
-import { LayoutDashboard, Video, BarChart2, Bell, Settings, Info } from 'lucide-react';
+import { Home, LayoutDashboard, Video, BarChart2, Bell, Settings, Info } from 'lucide-react';
 import clsx from 'clsx';
 
 interface SidebarProps {
@@ -8,6 +8,7 @@ interface SidebarProps {
 
 export default function Sidebar({ currentPage, onNavigate }: SidebarProps) {
   const navItems = [
+    { id: 'home', label: 'Home', icon: Home },
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'analytics', label: 'Analytics', icon: BarChart2 },
     { id: 'alerts', label: 'Alerts', icon: Bell },

@@ -6,10 +6,24 @@ import VideoFeed from '../components/video/VideoFeed';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { format } from 'date-fns';
 import clsx from 'clsx';
+import { Car, User, Activity } from 'lucide-react';
 
 interface CameraDetailProps {
   cameraId: string;
 }
+
+const CHART_STYLE = {
+  tooltip: {
+    contentStyle: {
+      backgroundColor: 'rgba(10,10,20,0.95)',
+      borderColor: 'rgba(255,255,255,0.08)',
+      borderRadius: '12px',
+      boxShadow: '0 4px 24px rgba(0,0,0,0.4)',
+      padding: '8px 12px',
+    },
+    itemStyle: { color: '#E5E7EB', fontSize: '12px' },
+  },
+};
 
 export default function CameraDetail({ cameraId }: CameraDetailProps) {
   const camera = useCameraStore(state => state.cameras.find(c => c.camera_id === cameraId));
@@ -17,7 +31,11 @@ export default function CameraDetail({ cameraId }: CameraDetailProps) {
   const { data: history } = useAnalyticsHistory(cameraId, '5m');
   const [activeTab, setActiveTab] = useState<'counts' | 'tracks' | 'density'>('counts');
 
-  if (!camera) return <div className="p-6 text-critical">Camera not found</div>;
+  if (!camera) return (
+    <div className="p-8 text-center">
+      <div className="text-red-400 font-semibold">Camera not found</div>
+    </div>
+  );
 
   const chartData = useMemo(() => {
     if (!history) return [];
@@ -25,81 +43,137 @@ export default function CameraDetail({ cameraId }: CameraDetailProps) {
       time: format(new Date(h.timestamp), 'HH:mm:ss'),
       vehicles: (h.class_counts?.car || 0) + (h.class_counts?.motorcycle || 0) + (h.class_counts?.bus || 0) + (h.class_counts?.truck || 0),
       pedestrians: h.class_counts?.person || 0,
-      active: h.active_tracks || 0
+      active: h.active_tracks || 0,
     }));
   }, [history]);
 
+  const vehicleTotal = analytics?.cumulative_classes
+    ? (analytics.cumulative_classes.car || 0) + (analytics.cumulative_classes.motorcycle || 0) + (analytics.cumulative_classes.truck || 0) + (analytics.cumulative_classes.bus || 0)
+    : null;
+  const pedestrianTotal = analytics?.cumulative_classes?.person ?? null;
+
+  const tabs = [
+    { key: 'counts', label: 'Live Counts' },
+    { key: 'tracks', label: 'Track History' },
+    { key: 'density', label: 'Density Map' },
+  ];
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">{camera.name}</h1>
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-xs font-semibold text-emerald-400 tracking-widest uppercase">Camera Detail</span>
+          </div>
+          <h1 className="text-3xl font-black tracking-tight text-white">{camera.name}</h1>
+          <p className="text-text-secondary mt-1 text-sm font-mono">{camera.camera_id}</p>
+        </div>
       </div>
 
-      <div className="rounded-2xl border border-border/50 p-2 bg-surface/70 backdrop-blur-md shadow-glass">
+      {/* Video feed */}
+      <div className="relative rounded-2xl overflow-hidden border border-white/8 bg-black/40">
+        <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5 bg-black/70 backdrop-blur-sm border border-white/10 rounded-full px-3 py-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="text-[10px] font-bold text-white/80 tracking-widest uppercase">Live Feed</span>
+        </div>
         <VideoFeed cameraId={cameraId} name={camera.name} className="h-[50vh] w-full" />
       </div>
 
-      <div className="bg-surface/50 backdrop-blur-md rounded-2xl border border-border/50 overflow-hidden shadow-glass">
-        <div className="flex border-b border-border/50">
-          {['counts', 'tracks', 'density'].map((tab) => (
+      {/* Tab panel */}
+      <div className="bg-white/[0.02] backdrop-blur-md rounded-2xl border border-white/8 overflow-hidden">
+        {/* Tab nav */}
+        <div className="flex border-b border-white/8">
+          {tabs.map((tab) => (
             <button
-              key={tab}
-              onClick={() => setActiveTab(tab as any)}
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key as any)}
               className={clsx(
-                "px-6 py-3 font-medium capitalize transition-colors",
-                activeTab === tab ? "border-b-2 border-primary text-primary bg-primary/5" : "text-text-secondary hover:text-text-primary hover:bg-white/5"
+                "px-6 py-3.5 text-sm font-semibold transition-all duration-200 relative",
+                activeTab === tab.key
+                  ? "text-indigo-300"
+                  : "text-text-secondary hover:text-white hover:bg-white/3"
               )}
             >
-              {tab}
+              {tab.label}
+              {activeTab === tab.key && (
+                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full" />
+              )}
             </button>
           ))}
         </div>
 
         <div className="p-6">
           {activeTab === 'counts' && (
-             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-               <div className="bg-surface/60 backdrop-blur-sm rounded-xl p-4 border border-border/50 h-64 shadow-inner">
-                 <h3 className="text-sm font-medium text-text-secondary mb-4">Active Objects (Last 60s)</h3>
-                 <ResponsiveContainer width="100%" height="100%">
-                   <LineChart data={chartData}>
-                     <XAxis dataKey="time" stroke="#9CA3AF" fontSize={12} />
-                     <YAxis stroke="#9CA3AF" fontSize={12} />
-                     <Tooltip contentStyle={{ backgroundColor: '#111827', borderColor: '#374151' }} />
-                     <Line type="monotone" dataKey="vehicles" stroke="#3B82F6" strokeWidth={2} dot={false} />
-                     <Line type="monotone" dataKey="pedestrians" stroke="#10B981" strokeWidth={2} dot={false} />
-                   </LineChart>
-                 </ResponsiveContainer>
-               </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+              {/* Chart */}
+              <div className="bg-white/3 rounded-xl p-5 border border-white/8">
+                <h3 className="text-sm font-semibold text-white mb-0.5">Active Objects (Last 60s)</h3>
+                <p className="text-xs text-text-secondary mb-4">Real-time vehicle and pedestrian counts</p>
+                <div className="h-56">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={chartData}>
+                      <XAxis dataKey="time" stroke="#374151" fontSize={10} />
+                      <YAxis stroke="#374151" fontSize={10} />
+                      <Tooltip {...CHART_STYLE.tooltip} />
+                      <Line type="monotone" dataKey="vehicles" name="Vehicles" stroke="#6366F1" strokeWidth={2.5} dot={false} />
+                      <Line type="monotone" dataKey="pedestrians" name="Pedestrians" stroke="#10B981" strokeWidth={2.5} dot={false} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
 
-               <div className="bg-surface/60 backdrop-blur-sm rounded-xl p-4 border border-border/50 shadow-inner">
-                 <h3 className="text-sm font-medium text-text-secondary mb-4">Total Unique Objects Tracked</h3>
-                 {analytics?.cumulative_classes ? (
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="p-4 bg-success/10 rounded-lg border border-success/20">
-                         <div className="text-success font-semibold text-sm">Vehicles</div>
-                         <div className="text-2xl font-bold mt-1">{(analytics.cumulative_classes.car || 0) + (analytics.cumulative_classes.motorcycle || 0) + (analytics.cumulative_classes.truck || 0) + (analytics.cumulative_classes.bus || 0)}</div>
+              {/* Cumulative stats */}
+              <div className="bg-white/3 rounded-xl p-5 border border-white/8">
+                <h3 className="text-sm font-semibold text-white mb-0.5">Total Unique Objects Tracked</h3>
+                <p className="text-xs text-text-secondary mb-5">Cumulative unique identities since session start</p>
+                {vehicleTotal !== null && pedestrianTotal !== null ? (
+                  <div className="grid grid-cols-1 gap-4">
+                    <div className="flex items-center gap-4 p-4 bg-indigo-500/8 rounded-xl border border-indigo-500/15">
+                      <div className="w-12 h-12 rounded-xl bg-indigo-500/15 border border-indigo-500/20 flex items-center justify-center">
+                        <Car size={22} className="text-indigo-400" />
                       </div>
-                      <div className="p-4 bg-info/10 rounded-lg border border-info/20">
-                         <div className="text-info font-semibold text-sm">Pedestrians</div>
-                         <div className="text-2xl font-bold mt-1">{analytics.cumulative_classes.person || 0}</div>
+                      <div>
+                        <div className="text-xs font-semibold text-indigo-400 uppercase tracking-wider">Vehicles</div>
+                        <div className="text-3xl font-black text-white mt-0.5">{vehicleTotal}</div>
                       </div>
                     </div>
-                 ) : (
-                    <div className="text-text-secondary text-sm">Waiting for data...</div>
-                 )}
-               </div>
-             </div>
+                    <div className="flex items-center gap-4 p-4 bg-emerald-500/8 rounded-xl border border-emerald-500/15">
+                      <div className="w-12 h-12 rounded-xl bg-emerald-500/15 border border-emerald-500/20 flex items-center justify-center">
+                        <User size={22} className="text-emerald-400" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">Pedestrians</div>
+                        <div className="text-3xl font-black text-white mt-0.5">{pedestrianTotal}</div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center h-40 text-text-secondary text-sm">
+                    <Activity size={20} className="mr-2 opacity-50" />
+                    Waiting for data...
+                  </div>
+                )}
+              </div>
+            </div>
           )}
 
           {activeTab === 'tracks' && (
-            <div className="text-text-secondary text-sm flex items-center justify-center h-48 border border-dashed border-border rounded-xl">
-               Track history view is currently under construction.
+            <div className="flex flex-col items-center justify-center h-48 gap-3 border border-dashed border-white/10 rounded-xl">
+              <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
+                <Activity size={20} className="text-text-secondary" />
+              </div>
+              <p className="text-text-secondary text-sm font-medium">Track history view is under construction</p>
             </div>
           )}
 
           {activeTab === 'density' && (
-            <div className="text-text-secondary text-sm flex items-center justify-center h-48 border border-dashed border-border rounded-xl">
-               Density map overlay view is currently under construction.
+            <div className="flex flex-col items-center justify-center h-48 gap-3 border border-dashed border-white/10 rounded-xl">
+              <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
+                <Activity size={20} className="text-text-secondary" />
+              </div>
+              <p className="text-text-secondary text-sm font-medium">Density map overlay is under construction</p>
             </div>
           )}
         </div>

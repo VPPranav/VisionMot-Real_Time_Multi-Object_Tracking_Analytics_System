@@ -10,13 +10,15 @@ interface LayoutProps {
 }
 
 export default function Layout({ children, currentPage, onNavigate }: LayoutProps) {
+  const hideNavigation = currentPage === 'home' || currentPage === 'auth';
+
   return (
     <div className="flex h-screen text-text-primary overflow-hidden bg-transparent">
-      <Sidebar currentPage={currentPage} onNavigate={onNavigate} />
+      {!hideNavigation && <Sidebar currentPage={currentPage} onNavigate={onNavigate} />}
 
       <div className="flex-1 flex flex-col min-w-0">
-        <AlertBanner />
-        <TopBar />
+        {!hideNavigation && <AlertBanner />}
+        {!hideNavigation && <TopBar />}
 
         <main className="flex-1 overflow-auto p-6 scroll-smooth flex flex-col">
           <div className="max-w-7xl mx-auto space-y-6 w-full flex-1 animate-in fade-in duration-300">

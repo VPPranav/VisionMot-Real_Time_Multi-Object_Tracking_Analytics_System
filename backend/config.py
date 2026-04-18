@@ -6,7 +6,7 @@ from models.schemas import CameraConfig
 
 class Settings(BaseSettings):
     camera_configs_path: str = "config/cameras.json"
-    default_model_size: str = "n"
+    default_model_size: str = "n"  # 'n' (nano, fast) or 's' (small, accurate)
     default_confidence_threshold: float = 0.4
     default_iou_threshold: float = 0.45
     default_classes: List[int] = [0, 2, 3, 5, 7] # person, car, motorcycle, bus, truck

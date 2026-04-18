@@ -43,7 +43,10 @@ app = FastAPI(title="Real-Time MOT System", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # For dev; production needs whitelist
+    allow_origins=[
+    "http://localhost:5173",  # for local dev
+    "https://your-frontend.vercel.app"  # after deploy
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -62,8 +65,10 @@ async def frame_generator(camera_id: str):
             if frame:
                 yield (b'--frame\r\n'
                        b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+                # Small yield to let the event loop breathe without accumulating delay
+                await asyncio.sleep(0.01)
             else:
-                await asyncio.sleep(0.05)
+                await asyncio.sleep(0.02)
         else:
             await asyncio.sleep(1)
 
@@ -73,4 +78,5 @@ async def video_stream(camera_id: str):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)

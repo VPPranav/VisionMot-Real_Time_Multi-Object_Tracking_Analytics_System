@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import VideoFeed from '../components/video/VideoFeed';
 import { useCameraStore } from '../store/cameraStore';
-import { LayoutGrid, Maximize2, Columns } from 'lucide-react';
+import { useAuthStore } from '../store/authStore';
+import { LayoutGrid, Maximize2, Columns, Camera, Settings } from 'lucide-react';
 import clsx from 'clsx';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 interface DashboardProps {
   onSelectCamera: (id: string) => void;
@@ -10,80 +12,134 @@ interface DashboardProps {
 
 export default function Dashboard({ onSelectCamera }: DashboardProps) {
   const cameras = useCameraStore(state => state.cameras);
+  const user = useAuthStore(state => state.user);
   const [layout, setLayout] = useState<1 | 2 | 4>(2);
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">System Dashboard</h1>
-          <p className="text-text-secondary mt-1">Real-time monitoring across all active camera feeds.</p>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-xs font-semibold text-emerald-400 tracking-widest uppercase">Live Monitoring</span>
+          </div>
+          <h1 className="text-3xl font-black tracking-tight text-white">
+            Welcome, <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-violet-400">{user}</span>
+          </h1>
+          <p className="text-text-secondary mt-1 text-sm">Real-time monitoring across {cameras.length} active camera{cameras.length !== 1 ? 's' : ''}.</p>
         </div>
-        
-        <div className="flex bg-surface-elevated rounded-lg p-1 border border-border">
-          <button 
-            onClick={() => setLayout(1)} 
-            className={clsx("p-2 rounded transition-colors hidden md:block", layout === 1 ? 'bg-primary text-white' : 'text-text-secondary hover:text-white')}
+
+        {/* Layout switcher */}
+        <div className="flex items-center bg-white/5 rounded-xl p-1 border border-white/10 gap-0.5">
+          <button
+            onClick={() => setLayout(1)}
+            title="Single view"
+            className={clsx(
+              "p-2 rounded-lg transition-all duration-200 hidden md:flex items-center justify-center",
+              layout === 1
+                ? 'bg-indigo-600 text-white shadow-[0_0_12px_rgba(99,102,241,0.4)]'
+                : 'text-text-secondary hover:text-white hover:bg-white/5'
+            )}
           >
-            <Maximize2 size={18} />
+            <Maximize2 size={16} />
           </button>
-          <button 
-            onClick={() => setLayout(2)} 
-            className={clsx("p-2 rounded transition-colors", layout === 2 ? 'bg-primary text-white' : 'text-text-secondary hover:text-white')}
+          <button
+            onClick={() => setLayout(2)}
+            title="2-column view"
+            className={clsx(
+              "p-2 rounded-lg transition-all duration-200 flex items-center justify-center",
+              layout === 2
+                ? 'bg-indigo-600 text-white shadow-[0_0_12px_rgba(99,102,241,0.4)]'
+                : 'text-text-secondary hover:text-white hover:bg-white/5'
+            )}
           >
-            <Columns size={18} />
+            <Columns size={16} />
           </button>
-          <button 
-            onClick={() => setLayout(4)} 
-            className={clsx("p-2 rounded transition-colors hidden sm:block", layout === 4 ? 'bg-primary text-white' : 'text-text-secondary hover:text-white')}
+          <button
+            onClick={() => setLayout(4)}
+            title="Grid view"
+            className={clsx(
+              "p-2 rounded-lg transition-all duration-200 hidden sm:flex items-center justify-center",
+              layout === 4
+                ? 'bg-indigo-600 text-white shadow-[0_0_12px_rgba(99,102,241,0.4)]'
+                : 'text-text-secondary hover:text-white hover:bg-white/5'
+            )}
           >
-            <LayoutGrid size={18} />
+            <LayoutGrid size={16} />
           </button>
         </div>
       </div>
 
+      {/* No cameras state */}
       {cameras.length === 0 ? (
-        <div className="h-64 flex flex-col items-center justify-center border-2 border-dashed border-border rounded-2xl bg-surface/50 backdrop-blur-sm shadow-glass">
-          <p className="text-text-secondary text-lg">No cameras configured.</p>
-          <p className="text-text-secondary text-sm mt-2">Go to Configuration to add a camera source.</p>
+        <div className="h-80 flex flex-col items-center justify-center border border-dashed border-white/10 rounded-2xl bg-white/2">
+          <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mb-4">
+            <Camera size={28} className="text-indigo-400" />
+          </div>
+          <p className="text-white font-semibold text-lg mb-1">No cameras configured</p>
+          <p className="text-text-secondary text-sm mb-6">Add a camera source to start monitoring.</p>
+          <button className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 rounded-xl text-sm font-semibold transition-all">
+            <Settings size={16} />
+            Go to Configuration
+          </button>
         </div>
       ) : (
         <div className={clsx(
           "grid gap-4",
           layout === 1 ? "grid-cols-1" :
-          layout === 2 ? "grid-cols-1 lg:grid-cols-2" :
-          "grid-cols-1 md:grid-cols-2 xl:grid-cols-4"
+            layout === 2 ? "grid-cols-1 lg:grid-cols-2" :
+              "grid-cols-1 md:grid-cols-2 xl:grid-cols-4"
         )}>
           {cameras.map(cam => (
-            <div key={cam.camera_id} className="flex flex-col h-full">
-              <VideoFeed 
-                cameraId={cam.camera_id} 
-                name={cam.name} 
-                onClick={() => onSelectCamera(cam.camera_id)}
-                className={clsx(
-                  layout === 1 ? "h-[60vh]" :
-                  layout === 2 ? "h-[45vh]" :
-                  "h-[30vh]"
-                )}
-              />
-              <div className="flex justify-between items-center mt-3">
-                 <div className="flex space-x-2">
-                    <button 
-                       onClick={() => fetch(`http://localhost:8000/cameras/${cam.camera_id}/start`, { method: 'POST' })} 
-                       className="px-3 py-1 bg-success/20 hover:bg-success/30 text-success text-sm rounded-lg border border-success/30 transition-colors cursor-pointer shadow-glass"
-                    >
-                       Start Feed
-                    </button>
-                    <button 
-                       onClick={() => fetch(`http://localhost:8000/cameras/${cam.camera_id}/stop`, { method: 'POST' })} 
-                       className="px-3 py-1 bg-critical/20 hover:bg-critical/30 text-critical text-sm rounded-lg border border-critical/30 transition-colors cursor-pointer shadow-glass"
-                    >
-                       Stop Feed
-                    </button>
-                 </div>
-                 <div className="bg-surface/50 backdrop-blur-md px-3 py-1.5 rounded-xl border border-border text-sm shadow-sm transition-all hover:border-primary/50 cursor-pointer">
-                    <span onClick={() => onSelectCamera(cam.camera_id)} className="text-text-secondary hover:text-white">Detailed Analytics &rarr;</span>
-                 </div>
+            <div
+              key={cam.camera_id}
+              className="flex flex-col h-full group"
+            >
+              {/* Feed wrapper */}
+              <div className="relative rounded-2xl overflow-hidden border border-white/8 group-hover:border-indigo-500/30 transition-all duration-300 bg-black/40">
+                {/* Live badge */}
+                <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5 bg-black/60 backdrop-blur-sm border border-white/10 rounded-full px-2.5 py-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="text-[10px] font-bold text-white/80 tracking-wide">LIVE</span>
+                </div>
+                <VideoFeed
+                  cameraId={cam.camera_id}
+                  name={cam.name}
+                  onClick={() => onSelectCamera(cam.camera_id)}
+                  className={clsx(
+                    "w-full",
+                    layout === 1 ? "h-[60vh]" :
+                      layout === 2 ? "h-[45vh]" :
+                        "h-[30vh]"
+                  )}
+                />
+              </div>
+
+              {/* Feed controls */}
+              <div className="flex items-center justify-between mt-2.5 px-0.5">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => fetch(`${API_URL}/cameras/${cam.camera_id}/start`, { method: 'POST' })}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-semibold rounded-lg border border-emerald-500/20 hover:border-emerald-500/30 transition-all"
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                    Start
+                  </button>
+                  <button
+                    onClick={() => fetch(`${API_URL}/cameras/${cam.camera_id}/stop`, { method: 'POST' })}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-semibold rounded-lg border border-red-500/20 hover:border-red-500/30 transition-all"
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
+                    Stop
+                  </button>
+                </div>
+                <button
+                  onClick={() => onSelectCamera(cam.camera_id)}
+                  className="text-xs text-text-secondary hover:text-indigo-300 font-medium transition-colors flex items-center gap-1"
+                >
+                  Analytics →
+                </button>
               </div>
             </div>
           ))}

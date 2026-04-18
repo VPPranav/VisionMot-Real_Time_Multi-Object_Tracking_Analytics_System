@@ -15,6 +15,7 @@ export interface AnalyticsMessage {
     density_score: number;
     zone_stats: any[];
     velocity_avg: number;
+    cumulative_classes?: Record<string, number>;
 }
 
 interface AnalyticsState {

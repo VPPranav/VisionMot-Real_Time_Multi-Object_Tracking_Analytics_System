@@ -18,7 +18,9 @@ class Tracker:
             conf=config.confidence_threshold,
             iou=config.iou_threshold,
             classes=config.classes,
-            verbose=False
+            imgsz=640,      # Frame is already 640px - skip internal resize
+            half=False,     # Set True if you have a CUDA GPU for fp16 speedup
+            verbose=False,
         )
         
         current_frame_track_ids = set()

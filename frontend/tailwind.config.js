@@ -30,6 +30,20 @@ export default {
       backdropBlur: {
         'md': '10px',
         'lg': '16px',
+      },
+      keyframes: {
+        scan: {
+          '0%, 100%': { transform: 'translateY(0)' },
+          '50%': { transform: 'translateY(250px)' },
+        },
+        fadeIn: {
+          '0%': { opacity: '0', transform: 'translateY(20px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        }
+      },
+      animation: {
+        scan: 'scan 4s ease-in-out infinite',
+        'fade-in': 'fadeIn 0.8s ease-out forwards',
       }
     },
   },
