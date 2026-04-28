@@ -174,6 +174,16 @@ VisionMOT/                              # Repository root
 │   ├── public/
 │   │   └── logo.png                    # VisionMOT logo asset
 │   │
+│   ├── .env                            # Local env vars (VITE_API_URL — NOT committed)
+│   ├── .gitignore
+│   ├── Dockerfile.frontend             # Docker build for frontend (nginx)
+│   ├── index.html                      # Vite HTML template
+│   ├── package.json                    # NPM dependencies & scripts
+│   ├── package-lock.json
+│   ├── postcss.config.js               # PostCSS config for Tailwind
+│   ├── tailwind.config.js              # Tailwind CSS configuration
+│   ├── tsconfig.json                   # TypeScript compiler options
+│   ├── vite.config.ts                  # Vite bundler configuration
 │   └── src/
 │       ├── assets/                     # Static assets (images, icons)
 │       │
@@ -215,16 +225,6 @@ VisionMOT/                              # Repository root
 │       ├── main.tsx                    # React DOM render entry
 │       └── style.css                   # Additional global styles
 │
-│   ├── .env                            # Local env vars (VITE_API_URL — NOT committed)
-│   ├── .gitignore
-│   ├── Dockerfile.frontend             # Docker build for frontend (nginx)
-│   ├── index.html                      # Vite HTML template
-│   ├── package.json                    # NPM dependencies & scripts
-│   ├── package-lock.json
-│   ├── postcss.config.js               # PostCSS config for Tailwind
-│   ├── tailwind.config.js              # Tailwind CSS configuration
-│   ├── tsconfig.json                   # TypeScript compiler options
-│   └── vite.config.ts                  # Vite bundler configuration
 │
 ├── config/                             # Root-level shared config (if any)
 ├── images/                             # Documentation images / screenshots
